@@ -9,10 +9,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.mirandagab.cursomc.domain.Cidade;
 import com.mirandagab.cursomc.domain.Cliente;
+import com.mirandagab.cursomc.domain.Endereco;
+import com.mirandagab.cursomc.domain.enums.TipoCliente;
 import com.mirandagab.cursomc.dto.ClienteDTO;
+import com.mirandagab.cursomc.dto.ClienteNewDTO;
 import com.mirandagab.cursomc.repositories.ClienteRepository;
+import com.mirandagab.cursomc.repositories.EnderecoRepository;
 import com.mirandagab.cursomc.services.exceptions.DataIntegrityException;
 import com.mirandagab.cursomc.services.exceptions.ObjectNotFoundException;
 
@@ -21,6 +27,8 @@ public class ClienteService {
 	
 	@Autowired
 	private ClienteRepository repo;
+	@Autowired
+	private EnderecoRepository enderecoRepository;
 
 	public Cliente find(Integer id) {
 		Optional<Cliente> obj = repo.findById(id);
@@ -28,9 +36,12 @@ public class ClienteService {
 				"Objeto não encontrado! ID: " + id + ", Tipo: " + Cliente.class.getName()));
 	}
 	
+	@Transactional
 	public Cliente insert(Cliente cliente) {
 		cliente.setId(null);
-		return repo.save(cliente);
+		cliente = repo.save(cliente);
+		enderecoRepository.saveAll(cliente.getEnderecos());
+		return cliente;
 	}
 	
 	public Cliente update(Cliente cliente) {
@@ -61,6 +72,21 @@ public class ClienteService {
 		Cliente cliente = find(dto.getId());
 		cliente.setNome(dto.getNome());
 		cliente.setEmail(dto.getEmail());
+		return cliente;
+	}
+	
+	public Cliente fromDTO(ClienteNewDTO dto) {
+		Cliente cliente = new Cliente(null, dto.getNome(), dto.getEmail(), dto.getCpfOuCnpj(), TipoCliente.toEnum(dto.getTipo()));
+		Cidade cidade = new Cidade(dto.getCidadeId(), null, null);
+		Endereco endereco = new Endereco(null, dto.getLogradouro(), dto.getNumero(), dto.getComplemento(), dto.getBairro(), dto.getCep(), cliente, cidade);
+		cliente.getEnderecos().add(endereco);
+		cliente.getTelefones().add(dto.getTelefone1());
+		if(dto.getTelefone2() != null) {
+			cliente.getTelefones().add(dto.getTelefone2());
+		}
+		if(dto.getTelefone3() != null) {
+			cliente.getTelefones().add(dto.getTelefone3());
+		}
 		return cliente;
 	}
 	
